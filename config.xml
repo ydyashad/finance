@@ -22,7 +22,7 @@
         id        = "com.inteliment.inteliment"
         version   = "2.0.0">
     
-    <name>Inteliment</name>
+    <name>iFinance</name>
 
     <description>
         Personal Finance Manager.
