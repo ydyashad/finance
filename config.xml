@@ -19,7 +19,7 @@
 -->
 <widget xmlns     = "http://www.w3.org/ns/widgets"
 		xmlns:gap   = "http://phonegap.com/ns/1.0"
-        id        = "com.inteliment.inteliment"
+        id        = "com.inteliment.ifinance"
         version   = "2.0.0">
     
     <name>iFinance</name>
