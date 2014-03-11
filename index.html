@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Inteliment</title>
+		<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=yes">
+		<meta http-equiv="content-type" content="text/html; charset=UTF8">
+		<link rel="stylesheet" href="http://code.jquery.com/mobile/1.3.2/jquery.mobile-1.3.2.min.css">
+		<style>
+			body { font: 12px Arial;}
+
+			path { 
+				stroke: steelblue;
+				stroke-width: 2;
+				fill: none;
+			}
+
+			.axis path,
+			.axis line {
+				fill: none;
+				stroke: grey;
+				stroke-width: 1;
+				shape-rendering: crispEdges;
+			}
+			div.ui-input-text {
+				width: 180px !important
+			}
+			
+			#chart {
+			  font: 10px sans-serif;
+			}
+
+			.axis path,
+			.axis line {
+			  fill: none;
+			  stroke: #000;
+			  shape-rendering: crispEdges;
+			}
+
+			.line {
+			  fill: none;
+			  stroke: steelblue;
+			  stroke-width: 1.5px;
+			}
+			
+			div.tooltip {   
+				position: absolute;           
+				text-align: center;                 
+				padding: 2px;             
+				font: 12px sans-serif;        
+				background: white;   
+				border: 0px;      
+				border-radius: 8px;           
+				pointer-events: none;         
+			}
+		</style>
+		<script src="http://code.jquery.com/jquery-1.8.3.min.js"></script>
+		<script src="http://code.jquery.com/mobile/1.3.2/jquery.mobile-1.3.2.min.js"></script>
+		<script src="http://d3js.org/d3.v3.js"></script>
+		<script src="phonegap.js"></script>
+		<script>			
+			function onLoad() {
+				document.addEventListener("deviceready", onDeviceReady, false);				
+			}
+			
+			function onDeviceReady() {
+				document.addEventListener("offline", onOffline, false);
+				document.addEventListener("backbutton", function(e){
+					if($.mobile.activePage.is('#residential')){
+						if(confirm("Do you want to exit?"))
+						{
+							e.preventDefault();
+							navigator.app.exitApp();
+						}
+					}
+					else {
+						navigator.app.backHistory();
+					}
+				}, false);
+			}
+			
+			function onOffline() {
+				alert("Please check your internet connection...");
+				navigator.app.exitApp();
+			}
+			
+			$(document).ready(function(){
+				
+				window.onresize = function()
+				{				
+					$('.info').css("height", window.innerHeight - 90);
+				}
+				
+				$('.info').css("height", window.innerHeight - 90);
+				
+				var w = $(".info").innerWidth() + 40,
+					h = $(".info").innerHeight() + 40,
+					margin = {top: 20, right: 80, bottom: 30, left: 80},
+					width = w - margin.left - margin.right - margin.bottom,
+					height = h - (2*margin.top) - (2*margin.bottom),
+					parseDate = d3.time.format("%-Y").parse;
+
+				var color = d3.scale.category10();
+				var x = d3.time.scale().range([0, width]);
+				var y = d3.scale.linear().range([height, 0]);
+
+				var line = d3.svg.line()
+				   .x(function(d) { return x(d.year); })
+				   .y(function(d) { return y(d.stat); });
+				
+				var svg = d3.select("#chart")
+					.append("svg")
+						.attr("width", width + margin.left + margin.right)
+						.attr("height", height + margin.top + margin.bottom)
+					.append("g")
+						.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+				var xAxis = d3.svg.axis().scale(x)
+					.orient("bottom")
+					svg.append("svg:g")
+						.attr("class", "x axis");
+
+				var yAxis = d3.svg.axis().scale(y)
+					.orient("left");
+					svg.append("svg:g")
+						.attr("class", "y axis");
+					
+				// Get the data
+				d3.tsv("data.tsv", function(error, data) { 
+					stat1 = data;
+					redraw();
+				});
+
+				function redraw()
+				{
+					var data = d3.nest().map(stat1);
+					var ch = $("#inf").val() == "" ? 0 : $("#inf").val()/100;
+					
+					var keyring = d3.keys(data[0]).filter(function(key) { 
+							return (key !== "Year" );
+						});
+					
+					var transpose = keyring.map(function(name) {
+						if(name == "PI" || name == "Savings" || name == "Portfolio"){
+							return {
+								name: name,
+								values: data.map(function(d) {
+									return {year: parseDate(d.Year), stat: +d[name] - (+d[name]*ch)};
+								})
+							};
+						}
+						else if(name == "Surplus"){
+							return {
+								name: name,
+								values: data.map(function(d) {
+									return {year: parseDate(d.Year), stat: +d[name] + (+d[name]*ch)};
+								})
+							};
+						} 
+						else{
+							return {
+								name: name,
+								values: data.map(function(d) {
+									return {year: parseDate(d.Year), stat: +d[name]};
+								})
+							};
+						}
+						});
+						
+					// Scale the range of the data
+					x.domain([
+						d3.min(transpose, function(c) { return d3.min(c.values, function(v) { return v.year; }); }),
+						d3.max(transpose, function(c) { return d3.max(c.values, function(v) { return v.year; }); })
+					]);
+
+					y.domain([
+						d3.min(transpose, function(c) { return d3.min(c.values, function(v) { return v.stat; }); }),
+						d3.max(transpose, function(c) { return d3.max(c.values, function(v) { return v.stat; }); })
+					]);
+					
+					var value = svg.selectAll(".value")
+						.data(transpose);
+					  
+					var valueEnter = value.enter().append("g")
+						.attr("class", "value")
+						.attr("id", function(d) { return d.name; });
+					  
+						valueEnter.append("path")
+							.attr("class", "line")
+							.attr("d", function(d) { return line(d.values); })
+							.style("stroke", function(d) { return color(d.name); });
+					  
+					var valueUpdate = d3.transition(value);
+					
+					// change values of path to those of the new series
+						valueUpdate.select("path")
+							.attr("d", function(d) { return line(d.values); });
+					  
+					
+						d3.transition(svg).select(".y.axis")
+							.call(yAxis);   
+						  
+						d3.transition(svg).select(".x.axis")
+							.attr("transform", "translate(0," + height + ")")
+							.call(xAxis);
+					
+					var legend = svg.selectAll(".legend")
+						.data(transpose)
+					.enter().append("g")
+						.attr("class", "legend")
+						.attr('id',function(d){ return d.name; })
+						.attr("transform", function(d, i) { return "translate("+ -i*120 +"," + (-margin.top) + ")"; });
+
+					legend.append("rect")
+						.attr("x", width - 18)
+						.attr("width", 18)
+						.attr("height", 18)
+						.style("fill", function(d) { return color(d.name); });
+
+					legend.append("text")
+						.attr("x", width - 24)
+						.attr("y", 9)
+						.attr("dy", ".35em")
+						.style("text-anchor", "end")
+						.text(function(d) { return d.name; });
+				}
+
+				// set terms of transition that will take place
+				// when a new economic indicator is chosen   
+				$( "#inf" ).bind('change', function () {
+						d3.transition()
+							.duration(2500)
+							.each(redraw);
+					});
+			});
+			
+		</script>
+	</head>
+	<body onload="onLoad()">
+	<!-- Residential Page -->
+		<div data-role="page" data-theme="b" data-dom-cache="true" id="residential">			
+			<div data-role="header" data-theme="b" data-position="fixed">
+				<h1>Residential Property</h1>
+				<a href="#nav-panel" data-icon="bars" data-iconpos="notext">Menu</a>
+			</div>
+			
+			<div data-role="content">
+			<!-- main content -->
+				<div class="ui-grid-a">
+				<!-- 2 col grid -->
+					<div class="ui-block-a">
+					<!-- 1st col -->
+						<div class="ui-bar ui-bar-c info">
+							
+							<div class="ui-grid-a">
+								<div class="ui-block-a">
+								<form>
+									<div data-role="fieldcontain">
+										 <label for="hv">Home Value</label>
+										 <input type="number" id="hv" data-mini="true" min="0" step="1000" value=""></br>
+									</div>
+									<div data-role="fieldcontain">
+										 <label for="pi">Passive Income</label>
+										 <input type="number" id="pi" data-mini="true" min="0" step="1000" value="">
+									</div>
+									<div data-role="fieldcontain">
+										 <label for="le">Living Expenses</label>
+										 <input type="number" id="le" data-mini="true" min="0" step="1000" value="">
+									</div>
+									<div data-role="fieldcontain">
+										 <label for="sa">Super Annuation</label>
+										 <input type="number" id="sa" data-mini="true" min="0" step="1000" value="">
+									</div>
+								</form>	
+								</div>
+								<div class="ui-block-b">
+									</br></br></br></br></br>
+									<label>Inflation (%)</label>
+									<input type="range" id="inf" data-mini="true" data-highlight="true" min="0" max="100" value="0" >
+								</div>
+							</div>
+								</br>
+							<div>
+								<label>Salary ($)</label>
+								<input style="font-size: 11px;" type="range" data-highlight="true" min="100000" max="200000" value="100000">
+							</div>
+								</br>
+							<div class="ui-grid-a">							
+								<div class="ui-block-a">
+									<label>Property Growth (%)</label>
+									<input type="range" data-mini="true" data-highlight="true" min="0" max="100" value="0">
+								</div>
+								<div class="ui-block-b">
+									<label>Residential Interest Rate (%)</label>
+									<input type="range" data-mini="true" data-highlight="true" min="0" max="100" value="0">
+								</div>
+								<div class="ui-block-a">
+									<label>Investment Portfolio Growth (%)</label>
+									<input type="range" data-mini="true" data-highlight="true" min="0" max="100" value="0">
+								</div>
+								<div class="ui-block-b">
+									<label>Cash Growth (%)</label>
+									<input type="range" data-mini="true" data-highlight="true" min="0" max="100" value="0">
+								</div>
+								<div class="ui-block-a">
+									<label>Super Growth (%)</label>
+									<input type="range" data-mini="true" data-highlight="true" min="0" max="100" value="0">
+								</div>
+								<div class="ui-block-b">
+									<label>Margin Loan Rate (%)</label>
+									<input type="range" data-mini="true" data-highlight="true" min="0" max="100" value="0">
+								</div>
+							</div>
+							
+						</div>
+						
+					</div>
+					
+					<div class="ui-block-b">
+					<!-- 2nd col -->
+						<div class="ui-bar ui-bar-c" id="chart">
+							
+
+						</div>
+						
+					</div>
+					
+				</div>
+				
+			</div>			
+			<!-- side panel -->
+			<div data-role="panel" data-position-fixed="true" data-display="push" data-theme="e" id="nav-panel">
+				<ul data-role="listview" data-theme="e">
+					<li><a href="#residential" data-rel="close">Residential Property</a></li>
+					<li><a href="#investment" data-transition="slide">Investment Property</a></li>
+					<li><a href="#panel-fixed-page2">Investment Portfolio</a></li>
+					<li><a href="#panel-fixed-page2">SMSF</a></li>
+					<li><a href="#panel-fixed-page2">Surplus</a></li>
+					<li><a href="#panel-fixed-page2">Output</a></li>
+				</ul>
+			</div>
+			
+		</div>
+		<!-- Investment Page -->
+		<div data-role="page" data-theme="b" data-dom-cache="true" id="investment">			
+			<div data-role="header" data-theme="b" data-position="fixed">
+				<h1>Residential Property</h1>
+				<a href="#nav-panel" data-icon="bars" data-iconpos="notext">Menu</a>
+			</div>
+			
+			<div data-role="content">
+				<div class="ui-grid-a">
+					<div class="ui-block-a">
+						<div class="ui-bar ui-bar-e">Block A</div>
+					</div>
+					<div class="ui-block-b">
+						<div class="ui-bar ui-bar-e">Block B</div>
+					</div>
+				</div>
+			</div>		
+			
+			<div data-role="panel" data-position-fixed="true" data-display="push" data-theme="e" id="nav-panel">
+				<ul data-role="listview" data-theme="e">
+					<li><a href="#residential" data-transition="slide">Residential Property</a></li>
+					<li><a href="#investment" data-rel="close">Investment Property</a></li>
+					<li><a href="#panel-fixed-page2">Investment Portfolio</a></li>
+					<li><a href="#panel-fixed-page2">SMSF</a></li>
+					<li><a href="#panel-fixed-page2">Surplus</a></li>
+					<li><a href="#panel-fixed-page2">Output</a></li>
+				</ul>
+			</div>
+			
+		</div>
+	</body>
+</html>
