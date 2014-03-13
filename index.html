@@ -28,12 +28,9 @@
 			#chart {
 			  font: 10px sans-serif;
 			}
-
-			.axis path,
-			.axis line {
-			  fill: none;
-			  stroke: #000;
-			  shape-rendering: crispEdges;
+			
+			#info {
+			  font: 14px sans-serif;
 			}
 
 			.line {
@@ -42,6 +39,13 @@
 			  stroke-width: 1.5px;
 			}
 			
+			.grid  {
+				stroke: lightgrey;
+				opacity: 0.9;
+			}
+			.grid path {
+				stroke-width: 0;
+			}
 			div.tooltip {   
 				position: absolute;           
 				text-align: center;                 
@@ -80,21 +84,20 @@
 			
 			function onOffline() {
 				alert("Please check your internet connection...");
+				function rredraw()
+				{
+				
+					alert("hi");
+				}
 				navigator.app.exitApp();
 			}
 			
-			$(document).ready(function(){
-				
-				window.onresize = function()
-				{				
-					$('.info').css("height", window.innerHeight - 90);
-				}
-				
-				$('.info').css("height", window.innerHeight - 90);
-				
-				var w = $(".info").innerWidth() + 40,
-					h = $(".info").innerHeight() + 40,
-					margin = {top: 20, right: 80, bottom: 30, left: 80},
+			function drawchart()
+			{
+				$("#chart").html("");
+				var w = $(".ui-bar-c").innerWidth() + 50,
+					h = $(".ui-bar-c").innerHeight() + 40,
+					margin = {top: 20, right: 60, bottom: 30, left: 50},
 					width = w - margin.left - margin.right - margin.bottom,
 					height = h - (2*margin.top) - (2*margin.bottom),
 					parseDate = d3.time.format("%-Y").parse;
@@ -123,6 +126,22 @@
 					.orient("left");
 					svg.append("svg:g")
 						.attr("class", "y axis");
+						
+				var make_x_axis = d3.svg.axis().scale(x)
+						.orient("bottom")
+						.ticks(10)
+						.tickSize(-height, 0, 0)
+						.tickFormat("")
+						svg.append("svg:g")
+						.attr("class", "x grid");
+
+				var make_y_axis = d3.svg.axis().scale(y)
+						.orient("left")
+						.ticks(10)
+						.tickSize(-width, 0, 0)
+						.tickFormat("")
+						svg.append("svg:g")
+						.attr("class", "y grid");
 					
 				// Get the data
 				d3.tsv("data.tsv", function(error, data) { 
@@ -181,13 +200,76 @@
 						.data(transpose);
 					  
 					var valueEnter = value.enter().append("g")
-						.attr("class", "value")
-						.attr("id", function(d) { return d.name; });
+						.attr("class", "value");
 					  
 						valueEnter.append("path")
-							.attr("class", "line")
+							.attr("class", "line")				
+							.attr('id',function(d){ return ("l"+d.name); })
 							.attr("d", function(d) { return line(d.values); })
-							.style("stroke", function(d) { return color(d.name); });
+							.style("stroke", function(d) { return color(d.name); })
+							.on("mouseover", function(d) {
+								d3.select(this)
+									.style("stroke-width",'4px');
+									
+								var selectthegraphs = $('.line').not(this); 
+								d3.selectAll(selectthegraphs)
+									.style("opacity",0.2);
+								
+								var getname = document.getElementById(d.name);
+								var selectlegend = $('.legend').not(getname);
+								
+								d3.selectAll(selectlegend)
+									.style("opacity",.2);    
+							})                  
+							.on("mouseout", function(d) {
+								d3.select(this)
+									.style("stroke-width",'1.5px');
+								
+								var selectthegraphs = $('.line').not(this); 
+								d3.selectAll(selectthegraphs)
+									.style("opacity",1);
+								
+								var getname = document.getElementById(d.name);
+								var selectlegend = $('.legend').not(getname);
+								
+								d3.selectAll(selectlegend)
+									.style("opacity",1);
+							});
+							
+					var legend = svg.selectAll(".legend")
+							.data(transpose)
+						.enter().append("g")
+							.attr("class", "legend")
+							.attr('id',function(d){ return d.name; })
+							.attr("transform", function(d, i) { return "translate("+ -i*80 +"," + (-margin.top) + ")"; })
+							.on("mouseover", function(d){
+								var getname1 = document.getElementById("l"+d.name);
+								var selectthegraphs = $('.line').not(getname1); 
+								
+								d3.selectAll(selectthegraphs)
+									.style("opacity",.2); 
+							})
+							.on("mouseout", function(d){
+								var getname1 = document.getElementById("l"+d.name);
+								var selectthegraphs = $('.line').not(getname1); 
+								
+								d3.selectAll(selectthegraphs)
+									.style("opacity",1); 
+							});
+
+						legend.append("rect")
+							.attr("x", width - 18)
+							.attr("width", 18)
+							.attr("height", 18)
+							.style("fill", function(d) { return color(d.name); });
+
+						legend.append("text")
+							.attr("x", width - 24)
+							.attr("y", 9)
+							.attr("dy", ".35em")
+							.style("text-anchor", "end")
+							.text(function(d) { return d.name; });
+					
 					  
 					var valueUpdate = d3.transition(value);
 					
@@ -202,26 +284,14 @@
 						d3.transition(svg).select(".x.axis")
 							.attr("transform", "translate(0," + height + ")")
 							.call(xAxis);
-					
-					var legend = svg.selectAll(".legend")
-						.data(transpose)
-					.enter().append("g")
-						.attr("class", "legend")
-						.attr('id',function(d){ return d.name; })
-						.attr("transform", function(d, i) { return "translate("+ -i*120 +"," + (-margin.top) + ")"; });
-
-					legend.append("rect")
-						.attr("x", width - 18)
-						.attr("width", 18)
-						.attr("height", 18)
-						.style("fill", function(d) { return color(d.name); });
-
-					legend.append("text")
-						.attr("x", width - 24)
-						.attr("y", 9)
-						.attr("dy", ".35em")
-						.style("text-anchor", "end")
-						.text(function(d) { return d.name; });
+							
+						d3.transition(svg).select(".x.grid")
+							.attr("transform", "translate(0," + height + ")")
+							.call(make_x_axis);
+						
+						d3.transition(svg).select(".y.grid")
+							.call(make_y_axis);
+							
 				}
 
 				// set terms of transition that will take place
@@ -231,6 +301,18 @@
 							.duration(2500)
 							.each(redraw);
 					});
+			}
+			
+			$(document).ready(function(){
+				
+				window.onresize = function()
+				{				
+					$('.ui-bar-c').css("height", window.innerHeight - 90);
+					drawchart();
+				}
+				
+				$('.ui-bar-c').css("height", window.innerHeight - 90);
+				drawchart();
 			});
 			
 		</script>
@@ -249,66 +331,72 @@
 				<!-- 2 col grid -->
 					<div class="ui-block-a">
 					<!-- 1st col -->
-						<div class="ui-bar ui-bar-c info">
+						<div class="ui-bar ui-bar-c">
 							
-							<div class="ui-grid-a">
-								<div class="ui-block-a">
-								<form>
-									<div data-role="fieldcontain">
-										 <label for="hv">Home Value</label>
-										 <input type="number" id="hv" data-mini="true" min="0" step="1000" value=""></br>
+							<div id="info">
+							
+								<div class="ui-grid-a">
+									<div class="ui-block-a">
+									<form>
+										<div data-role="fieldcontain">
+											 <label for="hv">Home Value</label>
+											 <input type="number" id="hv" data-mini="true" min="0" step="1000" value=""></br>
+										</div>
+										<div data-role="fieldcontain">
+											 <label for="pi">Passive Income</label>
+											 <input type="number" id="pi" data-mini="true" min="0" step="1000" value="">
+										</div>
+										<div data-role="fieldcontain">
+											 <label for="le">Living Expenses</label>
+											 <input type="number" id="le" data-mini="true" min="0" step="1000" value="">
+										</div>
+										<div data-role="fieldcontain">
+											 <label for="sa">Super Annuation</label>
+											 <input type="number" id="sa" data-mini="true" min="0" step="1000" value="">
+										</div>
+									</form>	
 									</div>
-									<div data-role="fieldcontain">
-										 <label for="pi">Passive Income</label>
-										 <input type="number" id="pi" data-mini="true" min="0" step="1000" value="">
+									<div class="ui-block-b">
+										</br></br></br></br></br>
+										<label>Inflation (%)</label>
+										<input type="range" id="inf" data-mini="true" data-highlight="true" min="0" max="100" value="0" >
 									</div>
-									<div data-role="fieldcontain">
-										 <label for="le">Living Expenses</label>
-										 <input type="number" id="le" data-mini="true" min="0" step="1000" value="">
+								</div>
+									</br>
+									</br>
+								<div>
+									<label>Salary ($)</label>
+									<input style="font-size: 11px;" type="range" data-highlight="true" min="100000" max="200000" value="100000">
+								</div>
+									</br>
+									</br>
+								<div class="ui-grid-a">							
+									<div class="ui-block-a">
+										<label>Property Growth (%)</label>
+										<input type="range" data-mini="true" data-highlight="true" min="0" max="100" value="0">
 									</div>
-									<div data-role="fieldcontain">
-										 <label for="sa">Super Annuation</label>
-										 <input type="number" id="sa" data-mini="true" min="0" step="1000" value="">
+									<div class="ui-block-b">
+										<label>Residential Interest Rate (%)</label>
+										<input type="range" data-mini="true" data-highlight="true" min="0" max="100" value="0">
 									</div>
-								</form>	
+									<div class="ui-block-a">
+										<label>Investment Portfolio Growth (%)</label>
+										<input type="range" data-mini="true" data-highlight="true" min="0" max="100" value="0">
+									</div>
+									<div class="ui-block-b">
+										<label>Cash Growth (%)</label>
+										<input type="range" data-mini="true" data-highlight="true" min="0" max="100" value="0">
+									</div>
+									<div class="ui-block-a">
+										<label>Super Growth (%)</label>
+										<input type="range" data-mini="true" data-highlight="true" min="0" max="100" value="0">
+									</div>
+									<div class="ui-block-b">
+										<label>Margin Loan Rate (%)</label>
+										<input type="range" data-mini="true" data-highlight="true" min="0" max="100" value="0">
+									</div>
 								</div>
-								<div class="ui-block-b">
-									</br></br></br></br></br>
-									<label>Inflation (%)</label>
-									<input type="range" id="inf" data-mini="true" data-highlight="true" min="0" max="100" value="0" >
-								</div>
-							</div>
-								</br>
-							<div>
-								<label>Salary ($)</label>
-								<input style="font-size: 11px;" type="range" data-highlight="true" min="100000" max="200000" value="100000">
-							</div>
-								</br>
-							<div class="ui-grid-a">							
-								<div class="ui-block-a">
-									<label>Property Growth (%)</label>
-									<input type="range" data-mini="true" data-highlight="true" min="0" max="100" value="0">
-								</div>
-								<div class="ui-block-b">
-									<label>Residential Interest Rate (%)</label>
-									<input type="range" data-mini="true" data-highlight="true" min="0" max="100" value="0">
-								</div>
-								<div class="ui-block-a">
-									<label>Investment Portfolio Growth (%)</label>
-									<input type="range" data-mini="true" data-highlight="true" min="0" max="100" value="0">
-								</div>
-								<div class="ui-block-b">
-									<label>Cash Growth (%)</label>
-									<input type="range" data-mini="true" data-highlight="true" min="0" max="100" value="0">
-								</div>
-								<div class="ui-block-a">
-									<label>Super Growth (%)</label>
-									<input type="range" data-mini="true" data-highlight="true" min="0" max="100" value="0">
-								</div>
-								<div class="ui-block-b">
-									<label>Margin Loan Rate (%)</label>
-									<input type="range" data-mini="true" data-highlight="true" min="0" max="100" value="0">
-								</div>
+							
 							</div>
 							
 						</div>
@@ -317,9 +405,10 @@
 					
 					<div class="ui-block-b">
 					<!-- 2nd col -->
-						<div class="ui-bar ui-bar-c" id="chart">
+						<div class="ui-bar ui-bar-c">
 							
-
+							<div id="chart"> </div>
+							
 						</div>
 						
 					</div>
