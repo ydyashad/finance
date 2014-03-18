@@ -5,71 +5,34 @@
 		<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=yes">
 		<meta http-equiv="content-type" content="text/html; charset=UTF8">
 		<link rel="stylesheet" href="http://code.jquery.com/mobile/1.3.2/jquery.mobile-1.3.2.min.css">
+		<link rel="stylesheet" href="c3.css" >
 		<style>
-			body { font: 12px Arial;}
-
-			path { 
-				stroke: steelblue;
-				stroke-width: 2;
-				fill: none;
-			}
-
-			.axis path,
-			.axis line {
-				fill: none;
-				stroke: grey;
-				stroke-width: 1;
-				shape-rendering: crispEdges;
-			}
-			div.ui-input-text {
-				width: 180px !important
-			}
-			
-			#chart {
-			  font: 10px sans-serif;
-			}
-			
-			#info {
-			  font: 14px sans-serif;
-			}
-
-			.line {
-			  fill: none;
-			  stroke: steelblue;
-			  stroke-width: 1.5px;
-			}
-			
-			.grid  {
-				stroke: lightgrey;
-				opacity: 0.9;
-			}
-			.grid path {
-				stroke-width: 0;
-			}
 			div.tooltip {   
 				position: absolute;           
 				text-align: center;                 
 				padding: 2px;             
-				font: 12px sans-serif;        
+				font: 24px verdena;        
 				background: white;   
-				border: 0px;      
-				border-radius: 8px;           
+				border: 1px solid;           
 				pointer-events: none;         
 			}
 		</style>
 		<script src="http://code.jquery.com/jquery-1.8.3.min.js"></script>
 		<script src="http://code.jquery.com/mobile/1.3.2/jquery.mobile-1.3.2.min.js"></script>
 		<script src="http://d3js.org/d3.v3.js"></script>
+		<script src="c3.min.js"></script>
 		<script src="phonegap.js"></script>
 		<script>			
 			function onLoad() {
-				document.addEventListener("deviceready", onDeviceReady, false);				
+				drawpie();
+				drawarea();
+				document.addEventListener("deviceready", onDeviceReady, false);	
 			}
 			
 			function onDeviceReady() {
 				document.addEventListener("offline", onOffline, false);
 				document.addEventListener("backbutton", function(e){
-					if($.mobile.activePage.is('#residential')){
+					if($.mobile.activePage.is('#home')){
 						if(confirm("Do you want to exit?"))
 						{
 							e.preventDefault();
@@ -84,21 +47,63 @@
 			
 			function onOffline() {
 				alert("Please check your internet connection...");
-				function rredraw()
-				{
-				
-					alert("hi");
-				}
 				navigator.app.exitApp();
 			}
 			
+			function drawpie(){
+				var chart = c3.generate({
+					bindto : "#homepie",		
+					padding: {
+						top: 20, right: 80, bottom: 30, left: 80
+					},
+					size: {
+						height: $(".divheight").innerHeight(),
+						width: $(".divheight").innerWidth()
+					},
+					data: {
+						url: 'fin1.csv',
+						type: 'pie'
+					}
+				});
+			}
+			
+			function drawarea(){
+				var chart = c3.generate({
+					bindto : "#homearea",		
+					padding: {
+						top: 20, right: 10, bottom: 30, left: 70
+					},
+					size: {
+						height: $("#homearea").innerHeight(),
+						width: $("#homearea").innerWidth()
+					},
+					data: {
+						x: 'Year',
+						url: 'fin.csv',
+						type: 'area'
+					},
+					axis : {
+						y: {
+							label: 'Value in ($)'
+						},
+						x : {
+							label: 'Years',
+							type : 'timeseries',
+							tick: {
+								format: '%Y'
+							}
+						}
+					}
+				});
+			}
+			
 			function drawchart()
-			{
-				$("#chart").html("");
-				var w = $(".ui-bar-c").innerWidth() + 50,
-					h = $(".ui-bar-c").innerHeight() + 40,
-					margin = {top: 20, right: 60, bottom: 30, left: 50},
-					width = w - margin.left - margin.right - margin.bottom,
+			{	
+				$("#cpchart").html("");
+				var w = $(".divheight1").innerWidth() - 70,
+					h = $(".divheight1").innerHeight() + 40,
+					margin = {top: 20, right: 60, bottom: 30, left: 60},
+					width = w,
 					height = h - (2*margin.top) - (2*margin.bottom),
 					parseDate = d3.time.format("%-Y").parse;
 
@@ -110,7 +115,11 @@
 				   .x(function(d) { return x(d.year); })
 				   .y(function(d) { return y(d.stat); });
 				
-				var svg = d3.select("#chart")
+				var div = d3.select("body").append("div")   
+					.attr("class", "tooltip")               
+					.style("opacity", 0);
+	
+				var svg = d3.select("#cpchart")
 					.append("svg")
 						.attr("width", width + margin.left + margin.right)
 						.attr("height", height + margin.top + margin.bottom)
@@ -146,51 +155,33 @@
 				// Get the data
 				d3.tsv("data.tsv", function(error, data) { 
 					stat1 = data;
-					redraw();
+					redraw('Surplus');
 				});
 
-				function redraw()
+				function redraw(ch)
 				{
 					var data = d3.nest().map(stat1);
-					var ch = $("#inf").val() == "" ? 0 : $("#inf").val()/100;
-					
+					//alert(ch);
 					var keyring = d3.keys(data[0]).filter(function(key) { 
-							return (key !== "Year" );
+							return (key !== "Year" && key === ch);
 						});
 					
 					var transpose = keyring.map(function(name) {
-						if(name == "PI" || name == "Savings" || name == "Portfolio"){
-							return {
-								name: name,
-								values: data.map(function(d) {
-									return {year: parseDate(d.Year), stat: +d[name] - (+d[name]*ch)};
-								})
-							};
-						}
-						else if(name == "Surplus"){
-							return {
-								name: name,
-								values: data.map(function(d) {
-									return {year: parseDate(d.Year), stat: +d[name] + (+d[name]*ch)};
-								})
-							};
-						} 
-						else{
-							return {
-								name: name,
-								values: data.map(function(d) {
-									return {year: parseDate(d.Year), stat: +d[name]};
-								})
-							};
-						}
-						});
+						return {
+							name: name,
+							values: data.map(function(d) {
+								return {year: parseDate(d.Year), stat: +d[name]};
+							})
+						};
+						
+					});
 						
 					// Scale the range of the data
 					x.domain([
 						d3.min(transpose, function(c) { return d3.min(c.values, function(v) { return v.year; }); }),
 						d3.max(transpose, function(c) { return d3.max(c.values, function(v) { return v.year; }); })
 					]);
-
+					
 					y.domain([
 						d3.min(transpose, function(c) { return d3.min(c.values, function(v) { return v.stat; }); }),
 						d3.max(transpose, function(c) { return d3.max(c.values, function(v) { return v.stat; }); })
@@ -208,76 +199,68 @@
 							.attr("d", function(d) { return line(d.values); })
 							.style("stroke", function(d) { return color(d.name); })
 							.on("mouseover", function(d) {
+								d3.selectAll('circle')
+									.attr("r", 8)
+									.style("fill", "red");
+									
 								d3.select(this)
 									.style("stroke-width",'4px');
 									
 								var selectthegraphs = $('.line').not(this); 
 								d3.selectAll(selectthegraphs)
-									.style("opacity",0.2);
-								
-								var getname = document.getElementById(d.name);
-								var selectlegend = $('.legend').not(getname);
-								
-								d3.selectAll(selectlegend)
-									.style("opacity",.2);    
+									.style("opacity",0.2);    
 							})                  
 							.on("mouseout", function(d) {
+								d3.selectAll('circle')
+									.attr("r", 3)
+									.style("fill", "steelblue");
+									
 								d3.select(this)
 									.style("stroke-width",'1.5px');
 								
 								var selectthegraphs = $('.line').not(this); 
 								d3.selectAll(selectthegraphs)
 									.style("opacity",1);
-								
-								var getname = document.getElementById(d.name);
-								var selectlegend = $('.legend').not(getname);
-								
-								d3.selectAll(selectlegend)
-									.style("opacity",1);
-							});
-							
-					var legend = svg.selectAll(".legend")
-							.data(transpose)
-						.enter().append("g")
-							.attr("class", "legend")
-							.attr('id',function(d){ return d.name; })
-							.attr("transform", function(d, i) { return "translate("+ -i*80 +"," + (-margin.top) + ")"; })
-							.on("mouseover", function(d){
-								var getname1 = document.getElementById("l"+d.name);
-								var selectthegraphs = $('.line').not(getname1); 
-								
-								d3.selectAll(selectthegraphs)
-									.style("opacity",.2); 
-							})
-							.on("mouseout", function(d){
-								var getname1 = document.getElementById("l"+d.name);
-								var selectthegraphs = $('.line').not(getname1); 
-								
-								d3.selectAll(selectthegraphs)
-									.style("opacity",1); 
-							});
-
-						legend.append("rect")
-							.attr("x", width - 18)
-							.attr("width", 18)
-							.attr("height", 18)
-							.style("fill", function(d) { return color(d.name); });
-
-						legend.append("text")
-							.attr("x", width - 24)
-							.attr("y", 9)
-							.attr("dy", ".35em")
-							.style("text-anchor", "end")
-							.text(function(d) { return d.name; });
+							});	
 					
-					  
-					var valueUpdate = d3.transition(value);
+					var entercircle = value.enter().append("g")
+						.attr("class", "value");
+						
+						entercircle.selectAll("circle")
+							.data(function(d,i){ return d.values})
+							.enter()
+							.append("circle")
+							.attr("class","circle")
+							.attr("cx", function(d){ return x(d.year);})
+							.attr("cy", function(d){ return y(d.stat);})
+							.attr("r", 3)
+							.style("fill", "Steelblue")
+							.on("mouseover", function(d){ 
+								d3.select(this)
+									.attr("r", 8)
+									.style("fill", "red");
+									
+								div.transition()        
+									.duration(200)      
+									.style("opacity", .9);      
+								div.html("$"+d.stat)
+									.style("left", (d3.event.pageX) + "px")     
+									.style("top", (d3.event.pageY - 28) + "px");
+							})
+							.on("mouseout", function(){ 
+								d3.select(this)
+									.attr("r", 3)
+									.style("fill", "Steelblue");
+									
+								div.transition()        
+									.duration(200)      
+									.style("opacity", 0);
+							});
 					
 					// change values of path to those of the new series
-						valueUpdate.select("path")
+						d3.transition(svg).select("path")
 							.attr("d", function(d) { return line(d.values); });
-					  
-					
+							
 						d3.transition(svg).select(".y.axis")
 							.call(yAxis);   
 						  
@@ -293,82 +276,215 @@
 							.call(make_y_axis);
 							
 				}
-
-				// set terms of transition that will take place
-				// when a new economic indicator is chosen   
-				$( "#inf" ).bind('change', function () {
-						d3.transition()
-							.duration(2500)
-							.each(redraw);
-					});
+				
+				drawchart.redraw = redraw;
+			}
+			
+			function mpredraw(){
+				var chart = c3.generate({
+					bindto : "#mpchart",		
+					padding: {
+						top: 20, right: 50, bottom: 30, left: 60
+					},
+					size: {
+						height: $("#mpchart").innerHeight(),
+						width: $("#mpchart").innerWidth()
+					},
+					data: {
+						x: 'Year',
+						url: '../../../../finance/fin2.csv',
+						type: 'spline'
+					},
+					axis : {
+						y: {
+							label: 'Value in ($)'
+						},
+						x : {
+							label: 'Years',
+							type : 'timeseries',
+							tick: {
+								format: '%Y'
+							}
+						}
+					}
+				});
 			}
 			
 			$(document).ready(function(){
 				
 				window.onresize = function()
 				{				
-					$('.ui-bar-c').css("height", window.innerHeight - 90);
-					drawchart();
+					$('.divheight').css("height", window.innerHeight - 80);
+					$('.divheight1').css("height", $('.divheight').innerHeight() - 40);
+					$('.divheight2').css("height", $('.divheight').innerHeight() - 40);
+					$('.divheight1').css("width", window.innerWidth - 30);
+					if($.mobile.activePage.is('#home'))
+					{
+						drawpie();
+						drawarea();
+					}
+					if($.mobile.activePage.is('#currentplan'))
+					{
+						drawchart();
+					}
+					if($.mobile.activePage.is('#makeplan'))
+					{
+						mpredraw();
+					}
 				}
 				
-				$('.ui-bar-c').css("height", window.innerHeight - 90);
-				drawchart();
+				$('.divheight').css("height", window.innerHeight - 80);
+				$('.divheight1').css("height", $('.divheight').innerHeight() - 40);
+				$('.divheight2').css("height", $('.divheight').innerHeight() - 40);
+				$('.divheight1').css("width", window.innerWidth - 30);
+				$('#cpselect').on('click', function(event) {
+					// Retrieve the 'name' data attribute of the <a/> tag that the user clicked.
+					var name = $(event.target).closest('a').data('name');
+					drawchart();
+					drawchart.redraw(name);
+				});
+				$('#mpselect').on('click', function(event) {
+					// Retrieve the 'name' data attribute of the <a/> tag that the user clicked.
+					var name = $(event.target).closest('a').data('name');
+					if(name === 'home')
+					{
+						$('#mpgrid').css('display', 'block');
+						$('#mprp').css('display', 'none');
+					}
+					else if(name === 'rp')
+					{
+						$('#mpgrid').css('display', 'none');
+						$('#mprp').css('display', 'block');
+					}
+				}); 
 			});
 			
 		</script>
 	</head>
 	<body onload="onLoad()">
-	<!-- Residential Page -->
-		<div data-role="page" data-theme="b" data-dom-cache="true" id="residential">			
+	<!-- Home Page -->
+		<div data-role="page" data-dom-cache="true" id="home">			
 			<div data-role="header" data-theme="b" data-position="fixed">
-				<h1>Residential Property</h1>
+				<h1>My Portfolio</h1>
 				<a href="#nav-panel" data-icon="bars" data-iconpos="notext">Menu</a>
 			</div>
 			
 			<div data-role="content">
-			<!-- main content -->
 				<div class="ui-grid-a">
-				<!-- 2 col grid -->
 					<div class="ui-block-a">
-					<!-- 1st col -->
-						<div class="ui-bar ui-bar-c">
-							
-							<div id="info">
-							
+						<div class="divheight" id="homearea">
+						</div>
+					</div>
+					<div class="ui-block-b">
+						<div class="divheight" id="homepie">
+						</div>
+					</div>
+				</div>
+			</div>		
+			
+			<div data-role="panel" data-position-fixed="true" data-display="push" data-theme="e" id="nav-panel">
+				<ul data-role="listview" data-theme="e">
+					<li><a href="#home" data-rel="close">Home</a></li>
+					<li><a href="#currentplan" data-transition="slide" onclick="drawchart();">Current Plan</a></li>
+					<li><a href="#makeplan" data-transition="slide" onclick="mpredraw();">Make Plan</a></li>
+					<li><a href="#panel-fixed-page2">My Shares </a></li>
+					<li><a href="#panel-fixed-page2">My funds </a></li>
+				</ul>
+			</div>
+			
+		</div>
+	
+		<!-- Current Plan Page -->
+		<div data-role="page" data-dom-cache="true" id="currentplan">			
+			<div data-role="header" data-theme="b" data-position="fixed">
+				<h1>Current Plan</h1>
+				<a href="#nav-panel" data-icon="bars" data-iconpos="notext">Menu</a>
+			</div>
+			
+			<div data-role="content">
+				<div id="cpselect" data-role="navbar" data-grid="d">
+					<ul>
+						<li><a href="#" class="ui-btn-active" data-name="Surplus" >Surplus</a></li>
+						<li><a href="#" data-name="PI" >Passive Income</a></li>
+						<li><a href="#" data-name="Savings" >Savings</a></li>
+						<li><a href="#" data-name="Portfolio" >Portfolio</a></li>
+						<li><a href="#" data-name="Mortgage" >Mortgage</a></li>
+					</ul>
+				</div>
+				
+				<div id="cpchart" class="divheight1" >
+					
+				</div>
+			</div>		
+			
+			<div data-role="panel" data-position-fixed="true" data-display="push" data-theme="e" id="nav-panel">
+				<ul data-role="listview" data-theme="e">
+					<li><a href="#home" data-transition="slide" onclick="drawpie();drawarea();">Home</a></li>
+					<li><a href="#currentplan" data-rel="close">Current Plan</a></li>
+					<li><a href="#makeplan" data-transition="slide" onclick="mpredraw();">Make Plan</a></li>
+					<li><a href="#panel-fixed-page2">My Shares </a></li>
+					<li><a href="#panel-fixed-page2">My funds </a></li>
+				</ul>
+			</div>
+			
+		</div>
+		
+		<!-- Make Plan Page -->
+		<div data-role="page" data-dom-cache="true" id="makeplan">			
+			<div data-role="header" data-theme="b" data-position="fixed">
+				<h1>Make Plan</h1>
+				<a href="#nav-panel" data-icon="bars" data-iconpos="notext">Menu</a>
+			</div>
+			
+			<div data-role="content">
+				<div id="mpselect" data-role="navbar" data-grid="d">
+					<ul>
+						<li><a href="#" class="ui-btn-active" data-name="home" >Home</a></li>
+						<li><a href="#" data-name="rp" >Residential Property</a></li>
+						<li><a href="#" data-name="ip" >Investment Portfolio</a></li>
+						<li><a href="#" data-name="smsf" >SMSF</a></li>
+						<li><a href="#" data-name="surplus" >Surplus</a></li>
+					</ul>
+				</div>
+				<div class="ui-grid-a">
+					<div class="ui-block-a">
+						<div class="divheight2" id="mpchart"></div>
+					</div>
+					<div class="ui-block-b">
+						<div class="divheight2" id="mpgrid" style="font: 12px verdena;">
+						
 								<div class="ui-grid-a">
 									<div class="ui-block-a">
 									<form>
 										<div data-role="fieldcontain">
-											 <label for="hv">Home Value</label>
+											 <label for="hv" style="font: 12px verdena;">Home Value</label>
 											 <input type="number" id="hv" data-mini="true" min="0" step="1000" value=""></br>
 										</div>
 										<div data-role="fieldcontain">
-											 <label for="pi">Passive Income</label>
+											 <label for="pi" style="font: 12px verdena;">Passive Income</label>
 											 <input type="number" id="pi" data-mini="true" min="0" step="1000" value="">
 										</div>
 										<div data-role="fieldcontain">
-											 <label for="le">Living Expenses</label>
+											 <label for="le" style="font: 12px verdena;">Living Expenses</label>
 											 <input type="number" id="le" data-mini="true" min="0" step="1000" value="">
 										</div>
 										<div data-role="fieldcontain">
-											 <label for="sa">Super Annuation</label>
+											 <label for="sa" style="font: 12px verdena;">Super Annuation</label>
 											 <input type="number" id="sa" data-mini="true" min="0" step="1000" value="">
 										</div>
 									</form>	
 									</div>
-									<div class="ui-block-b">
+									<div class="ui-block-b"  style="padding-left: 1cm;">
 										</br></br></br></br></br>
 										<label>Inflation (%)</label>
 										<input type="range" id="inf" data-mini="true" data-highlight="true" min="0" max="100" value="0" >
 									</div>
 								</div>
 									</br>
-									</br>
 								<div>
 									<label>Salary ($)</label>
 									<input style="font-size: 11px;" type="range" data-highlight="true" min="100000" max="200000" value="100000">
 								</div>
-									</br>
 									</br>
 								<div class="ui-grid-a">							
 									<div class="ui-block-a">
@@ -397,67 +513,67 @@
 									</div>
 								</div>
 							
-							</div>
-							
 						</div>
-						
-					</div>
-					
-					<div class="ui-block-b">
-					<!-- 2nd col -->
-						<div class="ui-bar ui-bar-c">
-							
-							<div id="chart"> </div>
-							
+						<div class="divheight2" id="mprp" style="display: none;">
+							<table data-role="table" id="table-custom-2" data-mode="columntoggle" class="ui-body-d ui-shadow table-stripe ui-responsive" data-column-btn-theme="b" data-column-btn-text="Columns to display..." data-column-popup-theme="c">
+								<thead>
+									<tr>
+										<th data-priority="2">Year</th>
+										<th>Purchase Home</th>
+										<th data-priority="3">LVR</th>
+										<th data-priority="5">Term</th>
+									</tr>
+								</thead>
+								<tbody>
+									<tr>
+										<td><input type="date" data-clear-btn="true" data-mini="true" value=""></td>
+										<td><input type="text" data-clear-btn="true" data-mini="true" value=""></td>
+										<td><input type="text" data-clear-btn="true" data-mini="true" value=""></td>
+										<td><input type="text" data-clear-btn="true" data-mini="true" value=""></td>
+									</tr>
+									<tr>
+										<td><input type="date" data-clear-btn="true" data-mini="true" value=""></td>
+										<td><input type="text" data-clear-btn="true" data-mini="true" value=""></td>
+										<td><input type="text" data-clear-btn="true" data-mini="true" value=""></td>
+										<td><input type="text" data-clear-btn="true" data-mini="true" value=""></td>
+									</tr>
+									<tr>
+										<td><input type="date" data-clear-btn="true" data-mini="true" value=""></td>
+										<td><input type="text" data-clear-btn="true" data-mini="true" value=""></td>
+										<td><input type="text" data-clear-btn="true" data-mini="true" value=""></td>
+										<td><input type="text" data-clear-btn="true" data-mini="true" value=""></td>
+									</tr>
+									<tr>
+										<td><input type="date" data-clear-btn="true" data-mini="true" value=""></td>
+										<td><input type="text" data-clear-btn="true" data-mini="true" value=""></td>
+										<td><input type="text" data-clear-btn="true" data-mini="true" value=""></td>
+										<td><input type="text" data-clear-btn="true" data-mini="true" value=""></td>
+									</tr>
+									<tr>
+										<td><input type="date" data-clear-btn="true" data-mini="true" value=""></td>
+										<td><input type="text" data-clear-btn="true" data-mini="true" value=""></td>
+										<td><input type="text" data-clear-btn="true" data-mini="true" value=""></td>
+										<td><input type="text" data-clear-btn="true" data-mini="true" value=""></td>
+									</tr>      
+								</tbody>
+							</table>
 						</div>
-						
 					</div>
-					
-				</div>
-				
-			</div>			
-			<!-- side panel -->
-			<div data-role="panel" data-position-fixed="true" data-display="push" data-theme="e" id="nav-panel">
-				<ul data-role="listview" data-theme="e">
-					<li><a href="#residential" data-rel="close">Residential Property</a></li>
-					<li><a href="#investment" data-transition="slide">Investment Property</a></li>
-					<li><a href="#panel-fixed-page2">Investment Portfolio</a></li>
-					<li><a href="#panel-fixed-page2">SMSF</a></li>
-					<li><a href="#panel-fixed-page2">Surplus</a></li>
-					<li><a href="#panel-fixed-page2">Output</a></li>
-				</ul>
-			</div>
-			
-		</div>
-		<!-- Investment Page -->
-		<div data-role="page" data-theme="b" data-dom-cache="true" id="investment">			
-			<div data-role="header" data-theme="b" data-position="fixed">
-				<h1>Residential Property</h1>
-				<a href="#nav-panel" data-icon="bars" data-iconpos="notext">Menu</a>
-			</div>
-			
-			<div data-role="content">
-				<div class="ui-grid-a">
-					<div class="ui-block-a">
-						<div class="ui-bar ui-bar-e">Block A</div>
-					</div>
-					<div class="ui-block-b">
-						<div class="ui-bar ui-bar-e">Block B</div>
-					</div>
+					<!-- End of block-b -->
 				</div>
 			</div>		
 			
 			<div data-role="panel" data-position-fixed="true" data-display="push" data-theme="e" id="nav-panel">
 				<ul data-role="listview" data-theme="e">
-					<li><a href="#residential" data-transition="slide">Residential Property</a></li>
-					<li><a href="#investment" data-rel="close">Investment Property</a></li>
-					<li><a href="#panel-fixed-page2">Investment Portfolio</a></li>
-					<li><a href="#panel-fixed-page2">SMSF</a></li>
-					<li><a href="#panel-fixed-page2">Surplus</a></li>
-					<li><a href="#panel-fixed-page2">Output</a></li>
+					<li><a href="#home" data-transition="slide" onclick="drawpie();drawarea();">Home</a></li>
+					<li><a href="#currentplan" data-transition="slide" onclick="drawchart();">Current Plan</a></li>
+					<li><a href="#makeplan" data-rel="close">Make Plan</a></li>
+					<li><a href="#panel-fixed-page2">My Shares </a></li>
+					<li><a href="#panel-fixed-page2">My funds </a></li>
 				</ul>
 			</div>
 			
 		</div>
+		
 	</body>
 </html>
