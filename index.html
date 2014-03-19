@@ -198,7 +198,7 @@
 							.attr('id',function(d){ return ("l"+d.name); })
 							.attr("d", function(d) { return line(d.values); })
 							.style("stroke", function(d) { return color(d.name); })
-							.on("mouseover", function(d) {
+							.on("vmouseover", function(d) {
 								d3.selectAll('circle')
 									.attr("r", 8)
 									.style("fill", "red");
@@ -210,7 +210,7 @@
 								d3.selectAll(selectthegraphs)
 									.style("opacity",0.2);    
 							})                  
-							.on("mouseout", function(d) {
+							.on("vmouseout", function(d) {
 								d3.selectAll('circle')
 									.attr("r", 3)
 									.style("fill", "steelblue");
@@ -235,7 +235,7 @@
 							.attr("cy", function(d){ return y(d.stat);})
 							.attr("r", 3)
 							.style("fill", "Steelblue")
-							.on("mouseover", function(d){ 
+							.on("vmouseover", function(d){ 
 								d3.select(this)
 									.attr("r", 8)
 									.style("fill", "red");
@@ -247,7 +247,7 @@
 									.style("left", (d3.event.pageX) + "px")     
 									.style("top", (d3.event.pageY - 28) + "px");
 							})
-							.on("mouseout", function(){ 
+							.on("vmouseout", function(){ 
 								d3.select(this)
 									.attr("r", 3)
 									.style("fill", "Steelblue");
@@ -337,13 +337,13 @@
 				$('.divheight1').css("height", $('.divheight').innerHeight() - 40);
 				$('.divheight2').css("height", $('.divheight').innerHeight() - 40);
 				$('.divheight1').css("width", window.innerWidth - 30);
-				$('#cpselect').on('click', function(event) {
+				$('#cpselect').on('tap', function(event) {
 					// Retrieve the 'name' data attribute of the <a/> tag that the user clicked.
 					var name = $(event.target).closest('a').data('name');
 					drawchart();
 					drawchart.redraw(name);
 				});
-				$('#mpselect').on('click', function(event) {
+				$('#mpselect').on('tap', function(event) {
 					// Retrieve the 'name' data attribute of the <a/> tag that the user clicked.
 					var name = $(event.target).closest('a').data('name');
 					if(name === 'home')
